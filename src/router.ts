@@ -239,7 +239,15 @@ export async function routeInbound(event: InboundEvent): Promise<void> {
       agent_group_id: null,
     });
 
-    if (channelRequestGate) {
+    if (mg.is_group === 0) {
+      // DMs on a shared personal number: silently drop rather than surfacing
+      // a registration card for every incoming message.
+      log.debug('Message dropped — DM on unwired channel, registration suppressed', {
+        messagingGroupId: mg.id,
+        channelType: event.channelType,
+        platformId: event.platformId,
+      });
+    } else if (channelRequestGate) {
       // Fire-and-forget escalation. The gate is expected to build a card,
       // persist pending_channel_approvals, and replay the event via
       // routeInbound after approval. Errors are logged internally — the

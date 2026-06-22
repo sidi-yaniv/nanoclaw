@@ -97,8 +97,13 @@ export async function run(_args: string[]): Promise<void> {
         // systemctl not available
       }
     }
-  } else {
-    // Check for nohup PID file
+  }
+
+  // Fallback: nohup PID file. Runs when `mgr === 'none'`, and also when the
+  // platform-specific check above found nothing — e.g. systemd is PID 1 but
+  // the user session is unreachable (container/WSL/restricted env), so the
+  // service step legitimately fell back to the nohup wrapper.
+  if (service === 'not_found') {
     const pidFile = path.join(projectRoot, 'nanoclaw.pid');
     if (fs.existsSync(pidFile)) {
       try {

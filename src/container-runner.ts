@@ -347,6 +347,18 @@ export function buildMounts(
     mounts.push({ hostPath: skillsSrc, containerPath: '/app/skills', readonly: true });
   }
 
+  // Inbound attachments (images, audio, documents) downloaded by channel adapters.
+  // Mounted RO so the agent can read them but cannot modify the shared store.
+  const attachmentsDir = path.join(DATA_DIR, 'attachments');
+  fs.mkdirSync(attachmentsDir, { recursive: true });
+  mounts.push({ hostPath: attachmentsDir, containerPath: '/workspace/attachments', readonly: true });
+
+  // Whisper model cache — persisted on the host so the model is downloaded
+  // once and reused across container restarts and rebuilds.
+  const whisperCacheDir = path.join(DATA_DIR, 'whisper-cache');
+  fs.mkdirSync(whisperCacheDir, { recursive: true });
+  mounts.push({ hostPath: whisperCacheDir, containerPath: '/home/node/.cache/huggingface', readonly: false });
+
   // Additional mounts from container config
   if (containerConfig.additionalMounts && containerConfig.additionalMounts.length > 0) {
     const validated = validateAdditionalMounts(containerConfig.additionalMounts, agentGroup.name);

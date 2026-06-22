@@ -106,6 +106,20 @@ COPY cli-tools.json install-cli-tools.sh /tmp/
 RUN --mount=type=cache,target=/root/.cache/pnpm \
     sh /tmp/install-cli-tools.sh /tmp/cli-tools.json
 
+# ---- Whisper (voice message transcription) -----------------------------------
+# faster-whisper uses CTranslate2 — no PyTorch, significantly smaller than
+# openai-whisper. ffmpeg is required for audio format conversion (ogg→wav).
+# Models are NOT baked in — they download on first use to the host-mounted
+# cache at /home/node/.cache/huggingface (see container-runner.ts).
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
+        python3 \
+        python3-pip \
+        ffmpeg \
+    && pip3 install --break-system-packages faster-whisper \
+    && rm -rf /var/lib/apt/lists/*
+
 # ---- ncl CLI wrapper ----------------------------------------------------------
 # Actual script lives in the mounted source at /app/src/cli/ncl.ts.
 RUN printf '#!/bin/sh\nexec bun /app/src/cli/ncl.ts "$@"\n' > /usr/local/bin/ncl && \
