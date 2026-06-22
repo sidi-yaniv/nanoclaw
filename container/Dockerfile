@@ -132,7 +132,9 @@ RUN chmod +x /app/entrypoint.sh
 # ---- Workspace + permissions -------------------------------------------------
 RUN mkdir -p /workspace/group /workspace/extra && \
     chown -R node:node /workspace && \
-    chmod 777 /home/node
+    chmod 777 /home/node && \
+    mkdir -p /home/node/.cache/huggingface && \
+    chown -R node:node /home/node/.cache/huggingface
 
 USER node
 WORKDIR /workspace/group
