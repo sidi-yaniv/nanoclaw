@@ -723,17 +723,16 @@ registerChannelAdapter('whatsapp', {
               : rawSender;
             const senderName = msg.pushName || sender.split('@')[0];
             const fromMe = msg.key.fromMe || false;
-            // Filter bot's own messages to prevent echo loops.
-            // In self-chat (user messaging their own number), all messages have
-            // fromMe=true — use sentMessageCache to distinguish bot echoes from
-            // user-typed messages. For all other chats, the blanket fromMe
-            // filter is correct since the user's phone messages shouldn't wake
-            // the agent in third-party conversations.
-            if (fromMe) {
-              const isSelfChat = botPhoneJid && chatJid === botPhoneJid;
-              if (!isSelfChat) continue;
-              if (sentMessageCache.has(msg.key.id || '')) continue;
-            }
+            // Filter bot's own echoed messages to prevent loops. The bot's
+            // WhatsApp identity is a linked device on the owner's own
+            // account, so fromMe=true fires for both the owner's real
+            // phone-typed messages (in self-chat AND every other chat —
+            // multi-device attributes all linked devices to "me") and the
+            // bot's own sent replies. sentMessageCache (populated at every
+            // outbound send, keyed by message id) is the only reliable way
+            // to tell the two apart — an owner-typed message never has an
+            // id the bot itself generated.
+            if (fromMe && sentMessageCache.has(msg.key.id || '')) continue;
 
             const isBotMessage = ASSISTANT_HAS_OWN_NUMBER ? false : content.startsWith(`${ASSISTANT_NAME}:`);
 
@@ -898,7 +897,9 @@ registerChannelAdapter('whatsapp', {
 
         if (text) {
           const { text: formatted, mentions } = formatWhatsApp(text);
-          const prefixed = ASSISTANT_HAS_OWN_NUMBER ? formatted : `${ASSISTANT_NAME}: ${formatted}`;
+          const prefixed = ASSISTANT_HAS_OWN_NUMBER
+            ? formatted
+            : `${message.assistantName || ASSISTANT_NAME}: ${formatted}`;
           return sendRawMessage(platformId, prefixed, mentions);
         }
       },

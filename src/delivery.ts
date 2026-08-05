@@ -11,6 +11,7 @@ import type Database from 'better-sqlite3';
 
 import { getRunningSessions, getActiveSessions, createPendingQuestion } from './db/sessions.js';
 import { getAgentGroup } from './db/agent-groups.js';
+import { getContainerConfig } from './db/container-configs.js';
 import { getDb, hasTable } from './db/connection.js';
 import { getMessagingGroup, getMessagingGroupByPlatform } from './db/messaging-groups.js';
 import {
@@ -60,6 +61,8 @@ export interface ChannelDeliveryAdapter {
     /** Delivering adapter instance (defaults to channelType downstream).
      *  Host-internal only — containers never see instance. */
     instance?: string,
+    /** Sending agent's display name — see OutboundMessage.assistantName. */
+    assistantName?: string,
   ): Promise<string | undefined>;
   setTyping?(channelType: string, platformId: string, threadId: string | null, instance?: string): Promise<void>;
 }
@@ -367,6 +370,9 @@ async function deliverMessage(
       ? readOutboxFiles(session.agent_group_id, session.id, msg.id, content.files as string[])
       : undefined;
 
+  const senderGroup = getAgentGroup(session.agent_group_id);
+  const assistantName = getContainerConfig(session.agent_group_id)?.assistant_name ?? senderGroup?.name;
+
   const platformMsgId = await deliveryAdapter.deliver(
     msg.channel_type,
     msg.platform_id,
@@ -375,6 +381,7 @@ async function deliverMessage(
     msg.content,
     files,
     deliverInstance,
+    assistantName,
   );
   log.info('Message delivered', {
     id: msg.id,
